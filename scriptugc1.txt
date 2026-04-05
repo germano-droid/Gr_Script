@@ -1,0 +1,174 @@
+local player = game.Players.LocalPlayer
+local TweenService = game:GetService("TweenService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local currentCheckpoint = 0
+local maxCheckpoints = 100
+local flags = {infCoin = false, forward = false, backward = false}
+
+if player.PlayerGui:FindFirstChild("EggFarmerUltra") then
+    player.PlayerGui.EggFarmerUltra:Destroy()
+end
+
+local gui = Instance.new("ScreenGui", player.PlayerGui)
+gui.Name = "EggFarmerUltra"
+gui.ResetOnSpawn = false
+
+local mainFrame = Instance.new("Frame", gui)
+mainFrame.Size = UDim2.new(0, 220, 0, 150)
+mainFrame.Position = UDim2.new(0.05, 0, 0.4, 0)
+mainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+mainFrame.Active = true
+mainFrame.Draggable = true
+mainFrame.ClipsDescendants = true
+Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 6)
+
+local topBar = Instance.new("Frame", mainFrame)
+topBar.Size = UDim2.new(1, 0, 0, 22)
+topBar.BackgroundColor3 = Color3.fromRGB(5, 5, 5)
+
+local title = Instance.new("TextLabel", topBar)
+title.Size = UDim2.new(0, 120, 1, 0)
+title.Position = UDim2.new(0, 8, 0, 0)
+title.Text = "by.GR_Script"
+title.TextColor3 = Color3.new(1, 1, 1)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 10
+title.BackgroundTransparency = 1
+title.TextXAlignment = Enum.TextXAlignment.Left
+
+local minBtn = Instance.new("TextButton", topBar)
+minBtn.Size = UDim2.new(0, 20, 1, 0)
+minBtn.Position = UDim2.new(1, -42, 0, 0)
+minBtn.Text = "-"
+minBtn.TextColor3 = Color3.new(1, 1, 1)
+minBtn.BackgroundTransparency = 1
+minBtn.TextSize = 16
+
+local closeBtn = Instance.new("TextButton", topBar)
+closeBtn.Size = UDim2.new(0, 20, 1, 0)
+closeBtn.Position = UDim2.new(1, -22, 0, 0)
+closeBtn.Text = "X"
+closeBtn.TextColor3 = Color3.fromRGB(200, 50, 50)
+closeBtn.BackgroundTransparency = 1
+
+local function doRebirth()
+    local char = player.Character or player.CharacterAdded:Wait()
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+    for _, v in ipairs(workspace:GetDescendants()) do
+        if v:IsA("ProximityPrompt") then
+            local part = v.Parent
+            if part and part:IsA("BasePart") then
+                local name = (part.Name .. v.Name):lower()
+                if name:find("shop") or name:find("rebirth") then
+                    root.CFrame = part.CFrame + Vector3.new(0, 3, 0)
+                    task.wait(0.2)
+                    fireproximityprompt(v)
+                    return true
+                end
+            end
+        end
+    end
+end
+
+local function tpToCheckpoint(n)
+    local char = player.Character
+    if char and char:FindFirstChild("HumanoidRootPart") then
+        local target = workspace:FindFirstChild("Checkpoint" .. n) or workspace:FindFirstChild("Checkpoint " .. n)
+        if target then
+            char.HumanoidRootPart.CFrame = target.CFrame + Vector3.new(0, 3, 0)
+            currentCheckpoint = n
+            return true
+        end
+    end
+    return false
+end
+
+local function createToggle(name, posY, callback)
+    local label = Instance.new("TextLabel", mainFrame)
+    label.Size = UDim2.new(0, 140, 0, 20)
+    label.Position = UDim2.new(0, 10, 0, posY)
+    label.BackgroundTransparency = 1
+    label.Text = name
+    label.TextColor3 = Color3.fromRGB(180, 180, 180)
+    label.Font = Enum.Font.Gotham
+    label.TextSize = 10
+    label.TextXAlignment = Enum.TextXAlignment.Left
+
+    local toggleBG = Instance.new("Frame", mainFrame)
+    toggleBG.Size = UDim2.new(0, 45, 0, 18)
+    toggleBG.Position = UDim2.new(1, -55, 0, posY + 1)
+    toggleBG.BackgroundColor3 = Color3.fromRGB(120, 0, 0)
+    Instance.new("UICorner", toggleBG).CornerRadius = UDim.new(1, 0)
+
+    local circle = Instance.new("Frame", toggleBG)
+    circle.Size = UDim2.new(0, 14, 0, 14)
+    circle.Position = UDim2.new(0, 2, 0.5, -7)
+    circle.BackgroundColor3 = Color3.new(1,1,1)
+    Instance.new("UICorner", circle).CornerRadius = UDim.new(1, 0)
+
+    local btn = Instance.new("TextButton", toggleBG)
+    btn.Size = UDim2.new(1,0,1,0)
+    btn.BackgroundTransparency = 1
+    btn.Text = ""
+
+    local isActive = false
+    local function updateVisual(state)
+        isActive = state
+        TweenService:Create(toggleBG, TweenInfo.new(0.12), {BackgroundColor3 = isActive and Color3.fromRGB(0,170,0) or Color3.fromRGB(120,0,0)}):Play()
+        TweenService:Create(circle, TweenInfo.new(0.12), {Position = isActive and UDim2.new(1,-16,0.5,-7) or UDim2.new(0,2,0.5,-7)}):Play()
+    end
+
+    btn.MouseButton1Click:Connect(function()
+        isActive = not isActive
+        updateVisual(isActive)
+        callback(isActive, updateVisual)
+    end)
+end
+
+createToggle("Inf Points", 40, function(state)
+    flags.infCoin = state
+    task.spawn(function()
+        while flags.infCoin do
+            pcall(function() doRebirth() ReplicatedStorage:WaitForChild("GiveRebirthPass"):FireServer() end)
+            task.wait(0.1)
+        end
+    end)
+end)
+
+createToggle("Avançar Check Point", 70, function(state, updateFunc)
+    flags.forward = state
+    task.spawn(function()
+        while flags.forward do
+            local found = false
+            for i = currentCheckpoint + 1, maxCheckpoints do
+                if tpToCheckpoint(i) then found = true break end
+            end
+            if not found then flags.forward = false updateFunc(false) break end
+            task.wait(0.6)
+        end
+    end)
+end)
+
+createToggle("Voltar", 100, function(state, updateFunc)
+    flags.backward = state
+    task.spawn(function()
+        while flags.backward do
+            local found = false
+            for i = currentCheckpoint - 1, 1, -1 do
+                if tpToCheckpoint(i) then found = true break end
+            end
+            if not found then flags.backward = false updateFunc(false) break end
+            task.wait(0.6)
+        end
+    end)
+end)
+
+local minimized = false
+minBtn.MouseButton1Click:Connect(function()
+    minimized = not minimized
+    TweenService:Create(mainFrame, TweenInfo.new(0.2), {Size = minimized and UDim2.new(0, 220, 0, 22) or UDim2.new(0, 220, 0, 150)}):Play()
+end)
+
+closeBtn.MouseButton1Click:Connect(function() gui:Destroy() end)
